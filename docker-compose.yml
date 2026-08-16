@@ -1,0 +1,13 @@
+services:
+  e-cart:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: e-cart
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev -- --host
+
