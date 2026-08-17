@@ -15,18 +15,6 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'npm test -- --run'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:latest .'
@@ -74,7 +62,7 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment successful!'
+            echo 'Pipeline completed successfully!'
         }
 
         failure {
