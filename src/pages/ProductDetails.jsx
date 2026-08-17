@@ -1,315 +1,268 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FiStar, FiHeart, FiShoppingCart, FiTruck, FiShield, FiRotateCcw, FiMinus, FiPlus, FiShare2 } from 'react-icons/fi'
-import { useDispatch, useSelector } from 'react-redux'
-import { setCurrentProduct } from '../redux/slices/productsSlice'
+import { FiShoppingCart, FiHeart, FiStar, FiTruck, FiShield, FiRotateCcw, FiCheck, FiShare2, FiArrowLeft } from 'react-icons/fi'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
-import { useRecentlyViewed } from '../context/RecentlyViewedContext'
-import { recommendationEngine } from '../utils/recommendations'
-import { products, reviews } from '../data/products'
+import { productService } from '../services/productService'
 import { formatPrice, calculateDiscount } from '../utils/helpers'
-import ProductCard from '../components/products/ProductCard'
-import ReviewCard from '../components/home/ReviewCard'
+import ProductRail from '../components/products/ProductRail'
 
 const ProductDetails = () => {
   const { id } = useParams()
-  const dispatch = useDispatch()
+  const [product, setProduct] = useState(null)
+  const [relatedProducts, setRelatedProducts] = useState([])
+  const [selectedImage, setSelectedImage] = useState(0)
+  const [quantity, setQuantity] = useState(1)
+  const [activeTab, setActiveTab] = useState('description')
+  const [loading, setLoading] = useState(true)
+
   const { addToCart } = useCart()
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist()
-  const { addToRecentlyViewed } = useRecentlyViewed()
-  const [quantity, setQuantity] = useState(1)
-  const [selectedImage, setSelectedImage] = useState(0)
-  const [selectedTab, setSelectedTab] = useState('description')
-
-  const product = products.find((p) => p.id === parseInt(id))
-  const inWishlist = isInWishlist(product?.id)
 
   useEffect(() => {
-    if (product) {
-      dispatch(setCurrentProduct(product))
-      addToRecentlyViewed(product)
-      recommendationEngine.trackInteraction(product.id, 'view')
-      window.scrollTo(0, 0)
-    }
-  }, [product, dispatch, addToRecentlyViewed])
+    const fetchDetails = async () => {
+      setLoading(true)
+      try {
+        const item = await productService.getProductById(id)
+        setProduct(item)
+        setSelectedImage(0)
 
-  if (!product) {
+        // Fetch Related Products
+        const related = await productService.getRelatedProducts(item.id, item.category)
+        setRelatedProducts(related)
+      } catch (err) {
+        console.error('Error fetching details:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDetails()
+    window.scrollTo(0, 0)
+  }, [id])
+
+  if (loading) {
     return (
-      <div className="pt-24 pb-16 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Product not found</h1>
-        <Link to="/products" className="text-primary-600 hover:text-primary-700">
-          Back to Products
-        </Link>
+      <div className="pt-28 pb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-pulse space-y-8">
+        <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-1/4"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="aspect-square bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+          <div className="space-y-4">
+            <div className="h-10 bg-gray-200 dark:bg-gray-800 rounded w-3/4"></div>
+            <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-1/3"></div>
+            <div className="h-24 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
+          </div>
+        </div>
       </div>
     )
   }
 
+  if (!product) {
+    return (
+      <div className="pt-32 pb-24 text-center">
+        <h2 className="text-2xl font-bold">Product Not Found</h2>
+        <Link to="/products" className="btn-primary mt-4 inline-block">Back to Catalog</Link>
+      </div>
+    )
+  }
+
+  const inWishlist = isInWishlist(product.id)
+  const discount = calculateDiscount(product.originalPrice, product.price)
+
   const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addToCart(product)
-    }
-    recommendationEngine.trackInteraction(product.id, 'cart')
+    addToCart(product, quantity)
   }
 
   const handleWishlistToggle = () => {
-    if (inWishlist) {
-      removeFromWishlist(product.id)
-    } else {
-      addToWishlist(product)
-      recommendationEngine.trackInteraction(product.id, 'wishlist')
-    }
+    if (inWishlist) removeFromWishlist(product.id)
+    else addToWishlist(product)
   }
 
-  const relatedProducts = recommendationEngine.getContentBasedRecommendations(product.id, 4)
-
-  const productReviews = reviews.filter((r) => r.productId === product.id)
-
-  const discount = calculateDiscount(product.originalPrice, product.price)
-
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-28 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
-        <nav className="mb-8 text-sm">
-          <Link to="/" className="text-gray-500 hover:text-gray-700">
-            Home
+        {/* Breadcrumb Navigation */}
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-8">
+          <Link to="/" className="hover:text-brand-blue">Home</Link>
+          <span>/</span>
+          <Link to="/products" className="hover:text-brand-blue">Products</Link>
+          <span>/</span>
+          <Link to={`/products?category=${encodeURIComponent(product.category)}`} className="hover:text-brand-blue">
+            {product.category}
           </Link>
-          <span className="mx-2 text-gray-400">/</span>
-          <Link to="/products" className="text-gray-500 hover:text-gray-700">
-            Products
-          </Link>
-          <span className="mx-2 text-gray-400">/</span>
-          <span className="text-gray-900">{product.name}</span>
-        </nav>
+          <span>/</span>
+          <span className="text-gray-900 dark:text-white font-bold line-clamp-1">{product.name}</span>
+        </div>
 
-        {/* Product Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
-          {/* Image Gallery */}
-          <div>
-            <div className="aspect-square rounded-xl overflow-hidden mb-4 bg-gray-100">
-              <motion.img
-                key={selectedImage}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                src={product.images[selectedImage]}
+        {/* Product Details Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-20">
+          {/* Left: Gallery (7 Cols) */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="relative aspect-square rounded-3xl overflow-hidden glass-card border border-gray-200/60 dark:border-gray-800 shadow-2xl">
+              <img
+                src={product.images[selectedImage] || product.images[0]}
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-all duration-500"
               />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              {product.images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
-                    selectedImage === index
-                      ? 'border-primary-500'
-                      : 'border-transparent hover:border-gray-300'
-                  }`}
-                >
-                  <img
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Product Info */}
-          <div>
-            <span className="text-sm text-primary-600 font-medium mb-2 block">
-              {product.brand}
-            </span>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
+              {discount > 0 && (
+                <span className="absolute top-6 left-6 bg-red-500 text-white font-black text-xs uppercase px-4 py-1.5 rounded-full shadow-lg">
+                  -{discount}% OFF
+                </span>
+              )}
+            </div>
 
-            {/* Rating */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => (
-                  <FiStar
-                    key={i}
-                    className={`w-5 h-5 ${
-                      i < Math.floor(product.rating)
-                        ? 'text-yellow-400 fill-current'
-                        : 'text-gray-300'
+            {/* Thumbnail Selectors */}
+            {product.images && product.images.length > 1 && (
+              <div className="flex gap-4 overflow-x-auto pb-2">
+                {product.images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedImage(idx)}
+                    className={`relative w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all flex-shrink-0 ${
+                      selectedImage === idx
+                        ? 'border-brand-blue scale-105 shadow-lg'
+                        : 'border-transparent opacity-70 hover:opacity-100'
                     }`}
-                  />
+                  >
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
                 ))}
               </div>
-              <span className="text-gray-600">{product.rating}</span>
-              <span className="text-gray-400">|</span>
-              <span className="text-gray-600">{product.reviews} Reviews</span>
-            </div>
+            )}
+          </div>
 
-            {/* Price */}
-            <div className="flex items-center gap-3 mb-6">
-              <span className="text-3xl font-bold text-primary-600">
-                {formatPrice(product.price)}
-              </span>
-              {product.originalPrice > product.price && (
-                <>
+          {/* Right: Info & Purchase Controls (5 Cols) */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-brand-blue bg-brand-blue/10 px-3.5 py-1 rounded-full">
+                  {product.category}
+                </span>
+                <span className="text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full flex items-center gap-1">
+                  <FiCheck className="w-3.5 h-3.5" /> In Stock ({product.stock || 40} available)
+                </span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight mb-3">
+                {product.name}
+              </h1>
+
+              {/* Rating & Brand */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center text-amber-400">
+                  {[...Array(5)].map((_, i) => (
+                    <FiStar
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < Math.floor(product.rating || 4.8) ? 'fill-current' : 'opacity-30'
+                      }`}
+                    />
+                  ))}
+                  <span className="ml-2 font-bold text-sm text-gray-800 dark:text-gray-200">
+                    {product.rating || 4.8}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-400">({product.reviewsCount || 128} customer reviews)</span>
+              </div>
+
+              {/* Price Display */}
+              <div className="flex items-baseline gap-4 mb-6 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-200/50 dark:border-gray-800">
+                <span className="text-4xl font-black text-brand-blue">
+                  {formatPrice(product.price)}
+                </span>
+                {product.originalPrice > product.price && (
                   <span className="text-xl text-gray-400 line-through">
                     {formatPrice(product.originalPrice)}
                   </span>
-                  <span className="bg-red-100 text-red-600 px-2 py-1 rounded text-sm font-medium">
-                    -{discount}%
-                  </span>
-                </>
-              )}
-            </div>
-
-            {/* Description */}
-            <p className="text-gray-600 mb-6">{product.description}</p>
-
-            {/* Quantity */}
-            <div className="flex items-center gap-4 mb-6">
-              <span className="font-medium text-gray-900">Quantity:</span>
-              <div className="flex items-center border border-gray-300 rounded-lg">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-4 py-2 hover:bg-gray-100 transition-colors"
-                >
-                  <FiMinus className="w-5 h-5" />
-                </button>
-                <span className="px-4 py-2 font-medium">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                  className="px-4 py-2 hover:bg-gray-100 transition-colors"
-                >
-                  <FiPlus className="w-5 h-5" />
-                </button>
+                )}
               </div>
-              <span className="text-gray-500 text-sm">
-                {product.stock} items available
-              </span>
+
+              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-8">
+                {product.description}
+              </p>
+
+              {/* Specs Highlight */}
+              {product.specifications && (
+                <div className="space-y-2 mb-8 bg-gray-50 dark:bg-gray-800/60 p-4 rounded-2xl text-xs">
+                  {Object.entries(product.specifications).map(([k, v]) => (
+                    <div key={k} className="flex justify-between border-b border-gray-200/50 dark:border-gray-700/50 pb-2">
+                      <span className="text-gray-500 dark:text-gray-400 font-medium">{k}</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Actions */}
-            <div className="flex gap-4 mb-6">
-              <button
-                onClick={handleAddToCart}
-                className="flex-1 btn-primary flex items-center justify-center gap-2"
-              >
-                <FiShoppingCart className="w-5 h-5" />
-                Add to Cart
-              </button>
-              <button
-                onClick={handleWishlistToggle}
-                className={`p-3 rounded-lg border-2 transition-colors ${
-                  inWishlist
-                    ? 'border-red-500 text-red-500'
-                    : 'border-gray-300 text-gray-700 hover:border-red-500 hover:text-red-500'
-                }`}
-              >
-                <FiHeart className={`w-6 h-6 ${inWishlist ? 'fill-current' : ''}`} />
-              </button>
-              <button className="p-3 rounded-lg border-2 border-gray-300 text-gray-700 hover:border-primary-500 hover:text-primary-500 transition-colors">
-                <FiShare2 className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Features */}
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t">
-              <div className="text-center">
-                <FiTruck className="w-6 h-6 mx-auto mb-2 text-primary-600" />
-                <p className="text-sm text-gray-600">Free Shipping</p>
-              </div>
-              <div className="text-center">
-                <FiShield className="w-6 h-6 mx-auto mb-2 text-primary-600" />
-                <p className="text-sm text-gray-600">2 Year Warranty</p>
-              </div>
-              <div className="text-center">
-                <FiRotateCcw className="w-6 h-6 mx-auto mb-2 text-primary-600" />
-                <p className="text-sm text-gray-600">30 Day Returns</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="mb-16">
-          <div className="flex gap-8 border-b mb-6">
-            {['description', 'specifications', 'reviews'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSelectedTab(tab)}
-                className={`pb-4 font-medium transition-colors ${
-                  selectedTab === tab
-                    ? 'text-primary-600 border-b-2 border-primary-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          {selectedTab === 'description' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="prose max-w-none"
-            >
-              <p className="text-gray-600 leading-relaxed">{product.description}</p>
-              <p className="text-gray-600 leading-relaxed mt-4">
-                Experience premium quality with this carefully crafted product. Designed with
-                attention to detail and made from the finest materials, it offers exceptional
-                durability and style. Perfect for everyday use or special occasions.
-              </p>
-            </motion.div>
-          )}
-
-          {selectedTab === 'specifications' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(product.specifications).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex justify-between py-3 border-b border-gray-200"
+            <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Quantity</span>
+                <div className="flex items-center border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-900">
+                  <button
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="px-4 py-2 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
                   >
-                    <span className="text-gray-600 font-medium">{key}</span>
-                    <span className="text-gray-900">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {selectedTab === 'reviews' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {productReviews.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {productReviews.map((review) => (
-                    <ReviewCard key={review.id} review={review} />
-                  ))}
+                    -
+                  </button>
+                  <span className="px-5 py-2 font-semibold text-sm">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity((q) => q + 1)}
+                    className="px-4 py-2 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
+                  >
+                    +
+                  </button>
                 </div>
-              ) : (
-                <p className="text-gray-500 text-center py-8">No reviews yet</p>
-              )}
-            </motion.div>
-          )}
-        </div>
+              </div>
 
-        {/* Related Products */}
-        {relatedProducts.length > 0 && (
-          <div>
-            <h2 className="section-title mb-8">Related Products</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map((relatedProduct) => (
-                <ProductCard key={relatedProduct.id} product={relatedProduct} />
-              ))}
+              <div className="flex gap-4">
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-1 btn-primary py-4 text-base font-bold flex items-center justify-center gap-2 rounded-2xl shadow-2xl"
+                >
+                  <FiShoppingCart className="w-5 h-5" />
+                  Add to Cart
+                </button>
+                <button
+                  onClick={handleWishlistToggle}
+                  className={`p-4 rounded-2xl border transition-colors ${
+                    inWishlist
+                      ? 'bg-red-500 text-white border-red-500'
+                      : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-500 hover:text-white'
+                  }`}
+                >
+                  <FiHeart className={`w-5 h-5 ${inWishlist ? 'fill-current' : ''}`} />
+                </button>
+              </div>
+
+              {/* Guarantees */}
+              <div className="grid grid-cols-3 gap-2 pt-4 text-[11px] text-gray-500 font-semibold text-center">
+                <div className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/40 flex flex-col items-center gap-1">
+                  <FiTruck className="w-4 h-4 text-brand-blue" />
+                  <span>Free Express Delivery</span>
+                </div>
+                <div className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/40 flex flex-col items-center gap-1">
+                  <FiShield className="w-4 h-4 text-brand-blue" />
+                  <span>Official Warranty</span>
+                </div>
+                <div className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/40 flex flex-col items-center gap-1">
+                  <FiRotateCcw className="w-4 h-4 text-brand-blue" />
+                  <span>30-Day Returns</span>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Related Products Discovery Rail */}
+        {relatedProducts.length > 0 && (
+          <ProductRail
+            eyebrow="YOU MAY ALSO LIKE"
+            title="Related Product Discovery"
+            subtitle="Explore complementary items in the same collection."
+            products={relatedProducts}
+          />
         )}
       </div>
     </div>

@@ -1,20 +1,22 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiSearch, FiShoppingCart, FiUser, FiHeart, FiMenu, FiX, FiMoon, FiSun } from 'react-icons/fi'
+import { FiSearch, FiShoppingCart, FiUser, FiHeart, FiMenu, FiX, FiMoon, FiSun, FiZap } from 'react-icons/fi'
 import { useSelector } from 'react-redux'
 import { useCart } from '../../context/CartContext'
 import { useWishlist } from '../../context/WishlistContext'
 import { useTheme } from '../../context/ThemeContext'
-import VoiceSearch from '../../components/search/VoiceSearch'
+import VoiceSearch from '../search/VoiceSearch'
+import SearchOverlay from '../search/SearchOverlay'
+import CartDrawer from '../cart/CartDrawer'
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false)
   const [isListening, setIsListening] = useState(false)
-  
+
   const navigate = useNavigate()
   const location = useLocation()
   const { totalItems } = useCart()
@@ -24,25 +26,14 @@ const Navbar = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
+      setIsScrolled(window.scrollY > 40)
     }
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery)}`)
-      setIsSearchOpen(false)
-      setSearchQuery('')
-    }
-  }
-
   const handleVoiceSearch = (transcript) => {
-    setSearchQuery(transcript)
     navigate(`/products?search=${encodeURIComponent(transcript)}`)
-    setIsSearchOpen(false)
   }
 
   const navLinks = [
@@ -54,223 +45,228 @@ const Navbar = () => {
   ]
 
   return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-white dark:bg-gray-800 shadow-lg py-3'
-          : 'bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm py-4'
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">S</span>
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-              ShopSphere
-            </span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.path}
-                className={`text-sm font-medium transition-colors duration-200 ${
-                  location.pathname === link.path
-                    ? 'text-primary-600'
-                    : 'text-gray-700 hover:text-primary-600'
-                }`}
+    <>
+      <header
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
+          isScrolled
+            ? 'glass-navbar py-3 shadow-xl'
+            : 'bg-transparent py-5'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            {/* ShopSphere Logo Mark */}
+            <Link to="/" className="flex items-center gap-3 group">
+              <motion.div
+                whileHover={{ rotate: 12, scale: 1.05 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-blue via-brand-indigo to-brand-violet flex items-center justify-center shadow-lg shadow-brand-blue/30"
               >
-                {link.name}
-              </Link>
-            ))}
-          </div>
+                <FiZap className="w-5 h-5 text-white" />
+              </motion.div>
+              <div className="flex flex-col">
+                <span className="text-xl font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-1">
+                  Shop<span className="gradient-text">Sphere</span>
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-brand-blue -mt-1">
+                  3D COMMERCE
+                </span>
+              </div>
+            </Link>
 
-          {/* Right Actions */}
-          <div className="hidden md:flex items-center space-x-4">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              {isDark ? (
-                <FiSun className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+            {/* Desktop Navigation Links */}
+            <nav className="hidden md:flex items-center gap-1 bg-gray-100/60 dark:bg-gray-800/60 backdrop-blur-md p-1.5 rounded-full border border-gray-200/50 dark:border-gray-700/50">
+              {navLinks.map((link) => {
+                const isActive = location.pathname === link.path
+                return (
+                  <Link
+                    key={link.name}
+                    to={link.path}
+                    className={`relative px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+                      isActive
+                        ? 'text-white'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-brand-blue dark:hover:text-white'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="navTab"
+                        className="absolute inset-0 bg-gradient-to-r from-brand-blue to-brand-indigo rounded-full shadow-md -z-10"
+                        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                      />
+                    )}
+                    {link.name}
+                  </Link>
+                )
+              })}
+            </nav>
+
+            {/* Right Action Icons */}
+            <div className="hidden md:flex items-center gap-3">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="p-2.5 rounded-full glass-card hover:scale-110 transition-transform text-gray-700 dark:text-gray-200"
+                aria-label="Toggle Theme"
+              >
+                {isDark ? <FiSun className="w-4 h-4 text-amber-400" /> : <FiMoon className="w-4 h-4" />}
+              </button>
+
+              {/* Command Search Trigger */}
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-full glass-card text-xs font-medium text-gray-500 dark:text-gray-400 hover:border-brand-blue transition-all"
+              >
+                <FiSearch className="w-4 h-4 text-brand-blue" />
+                <span>Search...</span>
+                <span className="font-mono text-[10px] bg-gray-200 dark:bg-gray-800 px-1.5 py-0.5 rounded text-gray-400">
+                  ⌘K
+                </span>
+              </button>
+
+              {/* Voice Search */}
+              <VoiceSearch
+                onSearch={handleVoiceSearch}
+                isListening={isListening}
+                setIsListening={setIsListening}
+              />
+
+              {/* Wishlist */}
+              <Link
+                to="/wishlist"
+                className="p-2.5 rounded-full glass-card hover:scale-110 transition-transform text-gray-700 dark:text-gray-200 relative"
+                aria-label="Wishlist"
+              >
+                <FiHeart className="w-4 h-4" />
+                {wishlist.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-md">
+                    {wishlist.length}
+                  </span>
+                )}
+              </Link>
+
+              {/* Cart Drawer Launcher */}
+              <button
+                onClick={() => setIsCartDrawerOpen(true)}
+                className="p-2.5 rounded-full glass-card hover:scale-110 transition-transform text-gray-700 dark:text-gray-200 relative"
+                aria-label="Cart"
+              >
+                <FiShoppingCart className="w-4 h-4 text-brand-blue" />
+                {totalItems > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 bg-brand-blue text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-md"
+                  >
+                    {totalItems}
+                  </motion.span>
+                )}
+              </button>
+
+              {/* Auth Button */}
+              {isAuthenticated ? (
+                <Link to="/dashboard" className="p-1 rounded-full border-2 border-brand-blue">
+                  <img
+                    src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                    alt={user?.name}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                </Link>
               ) : (
-                <FiMoon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                <Link to="/login" className="btn-primary text-xs px-5 py-2.5 rounded-full">
+                  Sign In
+                </Link>
               )}
-            </button>
+            </div>
 
-            {/* Search */}
-            <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              <FiSearch className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-            </button>
-
-            {/* Voice Search */}
-            <VoiceSearch
-              onSearch={handleVoiceSearch}
-              isListening={isListening}
-              setIsListening={setIsListening}
-            />
-
-            {/* Wishlist */}
-            <Link
-              to="/wishlist"
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors relative"
-            >
-              <FiHeart className="w-5 h-5 text-gray-700" />
-              {wishlist.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-secondary-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                  {wishlist.length}
-                </span>
-              )}
-            </Link>
-
-            {/* Cart */}
-            <Link
-              to="/cart"
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors relative"
-            >
-              <FiShoppingCart className="w-5 h-5 text-gray-700" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                  {totalItems}
-                </span>
-              )}
-            </Link>
-
-            {/* User */}
-            {isAuthenticated ? (
-              <Link
-                to="/dashboard"
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            {/* Mobile Actions */}
+            <div className="flex md:hidden items-center gap-2">
+              <button
+                onClick={() => setIsCartDrawerOpen(true)}
+                className="p-2.5 rounded-full glass-card relative"
               >
-                <img
-                  src={user?.avatar}
-                  alt={user?.name}
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-              </Link>
-            ) : (
-              <Link
-                to="/login"
-                className="btn-primary text-sm px-4 py-2"
+                <FiShoppingCart className="w-5 h-5 text-brand-blue" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-brand-blue text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2.5 rounded-2xl glass-card text-gray-700 dark:text-gray-200"
               >
-                Sign In
-              </Link>
-            )}
+                {isMobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100"
-          >
-            {isMobileMenuOpen ? (
-              <FiX className="w-6 h-6" />
-            ) : (
-              <FiMenu className="w-6 h-6" />
-            )}
-          </button>
         </div>
 
-        {/* Search Bar */}
+        {/* Mobile Menu Dropdown */}
         <AnimatePresence>
-          {isSearchOpen && (
-            <motion.form
+          {isMobileMenuOpen && (
+            <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              onSubmit={handleSearch}
-              className="mt-4 overflow-hidden"
+              className="md:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800"
             >
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search products..."
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="px-6 py-6 space-y-4">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    to={link.path}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`block py-2 text-base font-bold ${
+                      location.pathname === link.path
+                        ? 'text-brand-blue'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    {link.name}
+                  </Link>
+                ))}
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false)
+                      setIsSearchOpen(true)
+                    }}
+                    className="flex items-center gap-3 w-full py-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
+                  >
+                    <FiSearch className="w-5 h-5 text-brand-blue" />
+                    <span>Search Catalog</span>
+                  </button>
+                  <Link
+                    to="/wishlist"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
+                  >
+                    <FiHeart className="w-5 h-5" />
+                    <span>Wishlist ({wishlist.length})</span>
+                  </Link>
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-sm font-semibold">Switch Theme</span>
+                    <button
+                      onClick={toggleTheme}
+                      className="p-2 rounded-full glass-card text-gray-700 dark:text-gray-200"
+                    >
+                      {isDark ? <FiSun className="w-4 h-4 text-amber-400" /> : <FiMoon className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </motion.form>
+            </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </header>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-t"
-          >
-            <div className="px-4 py-6 space-y-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.path}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block py-2 text-sm font-medium ${
-                    location.pathname === link.path
-                      ? 'text-primary-600'
-                      : 'text-gray-700'
-                  }`}
-                >
-                  {link.name}
-                </Link>
-              ))}
-              <div className="pt-4 border-t space-y-3">
-                <Link
-                  to="/wishlist"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center space-x-3 py-2"
-                >
-                  <FiHeart className="w-5 h-5" />
-                  <span>Wishlist ({wishlist.length})</span>
-                </Link>
-                <Link
-                  to="/cart"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center space-x-3 py-2"
-                >
-                  <FiShoppingCart className="w-5 h-5" />
-                  <span>Cart ({totalItems})</span>
-                </Link>
-                {isAuthenticated ? (
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center space-x-3 py-2"
-                  >
-                    <FiUser className="w-5 h-5" />
-                    <span>Dashboard</span>
-                  </Link>
-                ) : (
-                  <Link
-                    to="/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center space-x-3 py-2"
-                  >
-                    <FiUser className="w-5 h-5" />
-                    <span>Sign In</span>
-                  </Link>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </nav>
+      {/* Command Search Overlay */}
+      <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      {/* Slide-over Cart Drawer */}
+      <CartDrawer isOpen={isCartDrawerOpen} onClose={() => setIsCartDrawerOpen(false)} />
+    </>
   )
 }
 

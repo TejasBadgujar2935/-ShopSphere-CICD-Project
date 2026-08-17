@@ -1,147 +1,135 @@
+import React from 'react'
 import { motion } from 'framer-motion'
-import { FiTarget, FiUsers, FiAward, FiHeart } from 'react-icons/fi'
+import { FiZap, FiAward, FiUsers, FiGlobe, FiShield, FiHeart } from 'react-icons/fi'
 
 const About = () => {
-  const values = [
-    {
-      icon: FiTarget,
-      title: 'Our Mission',
-      description: 'To provide premium quality products at competitive prices while delivering exceptional customer service.',
-    },
-    {
-      icon: FiUsers,
-      title: 'Our Team',
-      description: 'A passionate group of individuals dedicated to making online shopping a delightful experience.',
-    },
-    {
-      icon: FiAward,
-      title: 'Quality First',
-      description: 'We carefully curate our products to ensure only the best reaches our customers.',
-    },
-    {
-      icon: FiHeart,
-      title: 'Customer Love',
-      description: 'Our customers are at the heart of everything we do. Your satisfaction is our success.',
-    },
+  const stats = [
+    { label: 'Products Catalog', value: '10,000+', icon: FiZap },
+    { label: 'Global Customers', value: '50,000+', icon: FiUsers },
+    { label: 'Satisfaction Rate', value: '99.4%', icon: FiAward },
+    { label: 'Live Support', value: '24/7', icon: FiGlobe },
   ]
 
-  const stats = [
-    { number: '50K+', label: 'Happy Customers' },
-    { number: '10K+', label: 'Products' },
-    { number: '100+', label: 'Brands' },
-    { number: '25+', label: 'Countries' },
+  const values = [
+    {
+      title: '3D Spatial Innovation',
+      desc: 'We bring products to life through immersive real-time 3D rendering so you can inspect every titanium bevel and stitch before ordering.',
+      icon: FiZap,
+    },
+    {
+      title: 'Uncompromised Quality',
+      desc: 'Every item in the ShopSphere catalog passes rigorous multi-stage quality assurance tests before entering our global fulfillment network.',
+      icon: FiShield,
+    },
+    {
+      title: 'Customer-Centric Focus',
+      desc: 'From 30-day hassle-free returns to instant priority chat support, our promise is complete peace of mind with every order.',
+      icon: FiHeart,
+    },
   ]
 
   return (
-    <div className="pt-24 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-5xl font-bold text-gray-900 mb-6"
-          >
-            About ShopSphere
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-xl text-gray-600 max-w-3xl mx-auto"
-          >
-            We're more than just an online store. We're a community of shoppers who believe in quality, value, and exceptional service.
-          </motion.p>
-        </div>
-
-        {/* Our Story */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20">
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <img
-              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800"
-              alt="Our Team"
-              className="rounded-2xl shadow-2xl"
-            />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
-            <p className="text-gray-600 mb-4">
-              Founded in 2020, ShopSphere started with a simple idea: make online shopping easier, more enjoyable, and more trustworthy. What began as a small startup has grown into a platform trusted by thousands of customers worldwide.
-            </p>
-            <p className="text-gray-600 mb-4">
-              We believe that shopping should be an experience, not just a transaction. That's why we've built a platform that combines cutting-edge technology with a human touch.
-            </p>
-            <p className="text-gray-600">
-              Today, we continue to innovate and expand, always keeping our customers' needs at the center of everything we do.
-            </p>
-          </motion.div>
-        </div>
-
-        {/* Our Values */}
-        <div className="mb-20">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">Our Values</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {values.map((value, index) => (
-              <motion.div
-                key={value.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-xl p-6 shadow-sm text-center"
-              >
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <value.icon className="w-8 h-8 text-primary-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{value.title}</h3>
-                <p className="text-gray-600 text-sm">{value.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="bg-gradient-to-r from-primary-600 to-secondary-600 rounded-2xl p-12 mb-20">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <p className="text-4xl font-bold mb-2">{stat.number}</p>
-                <p className="text-white/80">{stat.label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* Call to Action */}
-        <motion.div
+    <div className="pt-28 pb-24">
+      {/* Hero Header */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-16">
+        <motion.span
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-xs font-bold uppercase tracking-widest text-brand-blue bg-brand-blue/10 px-4 py-1.5 rounded-full inline-block mb-4"
+        >
+          OUR STORY & MISSION
+        </motion.span>
+        <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center bg-gray-50 rounded-2xl p-12"
+          transition={{ delay: 0.1 }}
+          className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white tracking-tight mb-4"
         >
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Join Our Journey</h2>
-          <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-            Be part of our growing community. Sign up for our newsletter and be the first to know about new products, exclusive deals, and exciting updates.
-          </p>
-          <form className="max-w-md mx-auto flex gap-2">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          More than a store.
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-gray-500 dark:text-gray-400 text-lg max-w-2xl mx-auto"
+        >
+          ShopSphere was founded on a singular vision: to revolutionize online commerce into a spatial, interactive, high-fidelity experience.
+        </motion.p>
+      </section>
+
+      {/* Animated Stats Banner */}
+      <section className="bg-brand-blue/5 border-y border-gray-200/80 dark:border-gray-800 py-12 mb-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((stat, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                className="text-center"
+              >
+                <div className="w-12 h-12 bg-brand-blue/15 text-brand-blue rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <stat.icon className="w-6 h-6" />
+                </div>
+                <h3 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">{stat.value}</h3>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-1">{stat.label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Story & Image Composition */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <div className="lg:col-span-6 space-y-6">
+            <span className="text-xs font-bold uppercase tracking-widest text-brand-blue">PHILOSOPHY</span>
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white">
+              Crafting the Next Generation of Commerce.
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+              We believe shopping online should feel tangible, inspiring, and seamless. By combining Three.js 3D viewport technology with curated luxury suppliers, ShopSphere delivers products designed for performance and style.
+            </p>
+            <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+              Whether you are discovering active noise cancelling audio gear, titanium smartwatches, or Italian lambskin leather, every item is backed by our full authenticity pledge.
+            </p>
+          </div>
+
+          <div className="lg:col-span-6 grid grid-cols-2 gap-4">
+            <img
+              src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80"
+              alt="Story 1"
+              className="rounded-3xl shadow-xl object-cover h-64 w-full"
             />
-            <button className="btn-primary">Subscribe</button>
-          </form>
-        </motion.div>
-      </div>
+            <img
+              src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80"
+              alt="Story 2"
+              className="rounded-3xl shadow-xl object-cover h-64 w-full mt-6"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Core Values Cards */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-xl mx-auto mb-12">
+          <h2 className="text-3xl font-black text-gray-900 dark:text-white">Our Core Pillars</h2>
+          <p className="text-gray-500 text-xs mt-1">Built on transparency, engineering, and trust.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {values.map((val, idx) => (
+            <div key={idx} className="glass-card p-8 rounded-3xl border border-gray-200/80 dark:border-gray-800 space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
+                <val.icon className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{val.title}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed">{val.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

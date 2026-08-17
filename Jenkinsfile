@@ -2,53 +2,83 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'e-cart'
-        CONTAINER_NAME = 'e-cart-container'
+        IMAGE_NAME     = "e-cart"
+        CONTAINER_NAME = "e-cart-container"
+        APP_PORT       = "5173"
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                echo 'Checking out source code from GitHub...'
                 checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'npm test -- --run'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image...'
-                sh 'docker build -t e-cart:latest .'
+                sh 'docker build -t ${IMAGE_NAME}:latest .'
             }
         }
 
-        stage('Deploy Container') {
+        stage('Stop Old Container') {
             steps {
-                echo 'Deploying React application...'
+                sh 'docker stop ${CONTAINER_NAME} || true'
+            }
+        }
 
+        stage('Remove Old Container') {
+            steps {
+                sh 'docker rm ${CONTAINER_NAME} || true'
+            }
+        }
+
+        stage('Run New Container') {
+            steps {
                 sh '''
-                    docker stop e-cart-container || true
-                    docker rm e-cart-container || true
-                    docker run -d --name e-cart-container -p 5173:5173 e-cart:latest
+                    docker run -d \
+                    --name ${CONTAINER_NAME} \
+                    -p ${APP_PORT}:${APP_PORT} \
+                    ${IMAGE_NAME}:latest
                 '''
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Deploy to Kubernetes') {
+            when {
+                branch 'main'
+            }
+
             steps {
-                echo 'Checking running container...'
-                sh 'docker ps'
+                sh '''
+                    kubectl set image deployment/e-cart \
+                    e-cart=${IMAGE_NAME}:latest
+
+                    kubectl rollout status deployment/e-cart
+                '''
             }
         }
     }
 
     post {
         success {
-            echo 'React application deployed successfully!'
+            echo 'Deployment successful!'
         }
 
         failure {
-            echo 'Deployment failed. Check the console output.'
+            echo 'Pipeline failed!'
         }
     }
 }

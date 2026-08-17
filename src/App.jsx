@@ -8,26 +8,29 @@ import { WishlistProvider } from './context/WishlistContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { RecentlyViewedProvider } from './context/RecentlyViewedContext'
 import { ComparisonProvider } from './context/ComparisonContext'
+import ErrorBoundary from './components/common/ErrorBoundary'
 
 function App() {
   return (
-    <Provider store={store}>
-      <ThemeProvider>
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <RecentlyViewedProvider>
-                <ComparisonProvider>
-                  <BrowserRouter>
-                    <AppRouter />
-                  </BrowserRouter>
-                </ComparisonProvider>
-              </RecentlyViewedProvider>
-            </WishlistProvider>
-          </CartProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <ThemeProvider>
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <RecentlyViewedProvider>
+                  <ComparisonProvider>
+                    <BrowserRouter>
+                      <AppRouter />
+                    </BrowserRouter>
+                  </ComparisonProvider>
+                </RecentlyViewedProvider>
+              </WishlistProvider>
+            </CartProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </Provider>
+    </ErrorBoundary>
   )
 }
 

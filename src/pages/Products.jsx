@@ -1,266 +1,374 @@
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { FiFilter, FiX, FiGrid, FiList } from 'react-icons/fi'
-import { useSelector, useDispatch } from 'react-redux'
-import { setFilters, setSortBy, applyFilters, resetFilters } from '../redux/slices/productsSlice'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FiFilter, FiX, FiGrid, FiList, FiCheckCircle, FiRotateCcw } from 'react-icons/fi'
 import { useSearchParams } from 'react-router-dom'
 import ProductCard from '../components/products/ProductCard'
+import ProductCardSkeleton from '../components/products/ProductCardSkeleton'
 import FilterPanel from '../components/products/FilterPanel'
+import StickyMobileFilter from '../components/products/StickyMobileFilter'
+import { productService } from '../services/productService'
 
 const Products = () => {
-  const dispatch = useDispatch()
-  const [searchParams] = useSearchParams()
-  const { filteredProducts, filters, sortBy } = useSelector((state) => state.products)
-  
-  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [productsList, setProductsList] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [nextCursor, setNextCursor] = useState(null)
+  const [hasNextPage, setHasNextPage] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
   const [viewMode, setViewMode] = useState('grid')
-  const [currentPage, setCurrentPage] = useState(1)
-  const productsPerPage = 8
+
+  // Filter States
+  const [filters, setFilters] = useState({
+    category: searchParams.get('category') || 'all',
+    brand: 'all',
+    priceRange: [0, 5000],
+    rating: 0,
+    searchQuery: searchParams.get('search') || '',
+    featuredOnly: searchParams.get('featured') === 'true',
+    trendingOnly: searchParams.get('trending') === 'true',
+    bestSellerOnly: searchParams.get('bestseller') === 'true',
+    newArrivalOnly: searchParams.get('new') === 'true',
+    editorsPickOnly: searchParams.get('editorsPick') === 'true',
+    dealOnly: searchParams.get('deal') === 'true',
+  })
+
+  const [sortBy, setSortBy] = useState('default')
+  const observerRef = useRef(null)
+
+  // Sync URL parameters
+  useEffect(() => {
+    const cat = searchParams.get('category')
+    const search = searchParams.get('search')
+    const feat = searchParams.get('featured')
+    const trend = searchParams.get('trending')
+    const best = searchParams.get('bestseller')
+    const dl = searchParams.get('deal')
+
+    setFilters((prev) => ({
+      ...prev,
+      category: cat || 'all',
+      searchQuery: search || '',
+      featuredOnly: feat === 'true',
+      trendingOnly: trend === 'true',
+      bestSellerOnly: best === 'true',
+      dealOnly: dl === 'true',
+    }))
+  }, [searchParams])
+
+  // Initial Fetch on Filter/Sort Change
+  const fetchInitialProducts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await productService.getProductsPaginated({
+        limit: 12,
+        category: filters.category,
+        brand: filters.brand,
+        minPrice: filters.priceRange[0],
+        maxPrice: filters.priceRange[1],
+        minRating: filters.rating,
+        searchQuery: filters.searchQuery,
+        sortBy,
+        featuredOnly: filters.featuredOnly,
+        trendingOnly: filters.trendingOnly,
+        bestSellerOnly: filters.bestSellerOnly,
+        newArrivalOnly: filters.newArrivalOnly,
+        editorsPickOnly: filters.editorsPickOnly,
+        dealOnly: filters.dealOnly,
+      })
+
+      setProductsList(res.items)
+      setNextCursor(res.nextCursor)
+      setHasNextPage(res.hasNextPage)
+      setTotalCount(res.totalCount)
+    } catch (err) {
+      console.error('Fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [filters, sortBy])
 
   useEffect(() => {
-    const category = searchParams.get('category')
-    const search = searchParams.get('search')
-    const featured = searchParams.get('featured')
-    const trending = searchParams.get('trending')
-    const bestseller = searchParams.get('bestseller')
+    fetchInitialProducts()
+  }, [fetchInitialProducts])
 
-    const newFilters = {}
-    if (category && category !== 'all') newFilters.category = category
-    if (search) newFilters.searchQuery = search
-    if (featured) newFilters.featured = true
-    if (trending) newFilters.trending = true
-    if (bestseller) newFilters.bestSeller = true
+  // Infinite Scroll Fetch More
+  const loadMoreProducts = async () => {
+    if (loadingMore || !hasNextPage || !nextCursor) return
+    setLoadingMore(true)
 
-    dispatch(setFilters(newFilters))
-    dispatch(applyFilters())
-  }, [searchParams, dispatch])
+    try {
+      const res = await productService.getProductsPaginated({
+        limit: 8,
+        cursor: nextCursor,
+        category: filters.category,
+        brand: filters.brand,
+        minPrice: filters.priceRange[0],
+        maxPrice: filters.priceRange[1],
+        minRating: filters.rating,
+        searchQuery: filters.searchQuery,
+        sortBy,
+        featuredOnly: filters.featuredOnly,
+        trendingOnly: filters.trendingOnly,
+        bestSellerOnly: filters.bestSellerOnly,
+        newArrivalOnly: filters.newArrivalOnly,
+        editorsPickOnly: filters.editorsPickOnly,
+        dealOnly: filters.dealOnly,
+      })
 
-  const handleFilterChange = (filterType, value) => {
-    dispatch(setFilters({ [filterType]: value }))
-    dispatch(applyFilters())
-    setCurrentPage(1)
+      setProductsList((prev) => [...prev, ...res.items])
+      setNextCursor(res.nextCursor)
+      setHasNextPage(res.hasNextPage)
+    } catch (err) {
+      console.error('Infinite scroll error:', err)
+    } finally {
+      setLoadingMore(false)
+    }
   }
 
-  const handleSortChange = (value) => {
-    dispatch(setSortBy(value))
-    dispatch(applyFilters())
+  // IntersectionObserver Trigger for Infinite Scroll
+  const lastElementRef = useCallback(
+    (node) => {
+      if (loading || loadingMore) return
+      if (observerRef.current) observerRef.current.disconnect()
+
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasNextPage) {
+          loadMoreProducts()
+        }
+      })
+
+      if (node) observerRef.current.observe(node)
+    },
+    [loading, loadingMore, hasNextPage, nextCursor]
+  )
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }))
   }
 
   const handleResetFilters = () => {
-    dispatch(resetFilters())
-    setCurrentPage(1)
+    setFilters({
+      category: 'all',
+      brand: 'all',
+      priceRange: [0, 5000],
+      rating: 0,
+      searchQuery: '',
+      featuredOnly: false,
+      trendingOnly: false,
+      bestSellerOnly: false,
+      newArrivalOnly: false,
+      editorsPickOnly: false,
+      dealOnly: false,
+    })
+    setSortBy('default')
+    setSearchParams({})
   }
 
-  // Pagination
-  const indexOfLastProduct = currentPage * productsPerPage
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage
-  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
-
   const sortOptions = [
-    { value: 'default', label: 'Default' },
+    { value: 'default', label: 'Recommended' },
     { value: 'price-low', label: 'Price: Low to High' },
     { value: 'price-high', label: 'Price: High to Low' },
     { value: 'rating', label: 'Highest Rated' },
     { value: 'newest', label: 'Newest First' },
+    { value: 'popularity', label: 'Most Popular' },
   ]
 
+  const activeFilterCount =
+    (filters.category !== 'all' ? 1 : 0) +
+    (filters.rating > 0 ? 1 : 0) +
+    (filters.searchQuery ? 1 : 0) +
+    (filters.featuredOnly ? 1 : 0) +
+    (filters.dealOnly ? 1 : 0)
+
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-28 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">All Products</h1>
-          <p className="text-gray-600">
-            Showing {filteredProducts.length} products
-          </p>
+        {/* Page Title & Breadcrumb Header */}
+        <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-widest text-brand-blue bg-brand-blue/10 px-3.5 py-1 rounded-full mb-2 inline-block">
+              EXPLORE CATALOG
+            </span>
+            <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
+              All Products
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Showing <strong className="text-brand-blue">{productsList.length}</strong> of{' '}
+              <strong>{totalCount}</strong> items with live infinite scroll append.
+            </p>
+          </div>
+
+          {/* Sort & Grid Controls */}
+          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Sort:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-gray-200 focus:outline-none focus:border-brand-blue shadow-sm"
+              >
+                {sortOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1 glass-card p-1 rounded-xl">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'grid' ? 'bg-brand-blue text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                }`}
+                aria-label="Grid view"
+              >
+                <FiGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'list' ? 'bg-brand-blue text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                }`}
+                aria-label="List view"
+              >
+                <FiList className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
+        {/* Main Content Sidebar Layout */}
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Filter Panel - Desktop */}
+          {/* Desktop Filter Sidebar */}
           <aside className="hidden lg:block w-64 flex-shrink-0">
-            <FilterPanel
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              onReset={handleResetFilters}
-            />
+            <div className="sticky top-28">
+              <FilterPanel
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                onReset={handleResetFilters}
+              />
+            </div>
           </aside>
 
-          {/* Mobile Filter Button */}
-          <button
-            onClick={() => setIsFilterOpen(true)}
-            className="lg:hidden fixed bottom-6 right-6 z-50 bg-primary-600 text-white p-4 rounded-full shadow-lg"
-          >
-            <FiFilter className="w-6 h-6" />
-          </button>
-
-          {/* Mobile Filter Modal */}
-          {isFilterOpen && (
-            <div className="fixed inset-0 bg-black/50 z-50 lg:hidden">
-              <div className="bg-white h-full overflow-y-auto p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold">Filters</h2>
-                  <button
-                    onClick={() => setIsFilterOpen(false)}
-                    className="p-2 hover:bg-gray-100 rounded-lg"
-                  >
-                    <FiX className="w-6 h-6" />
-                  </button>
-                </div>
-                <FilterPanel
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  onReset={handleResetFilters}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Products Grid */}
+          {/* Active Filter Pills Bar */}
           <div className="flex-1">
-            {/* Sort and View Options */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Sort by:</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => handleSortChange(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  {sortOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-lg ${
-                    viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <FiGrid className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-lg ${
-                    viewMode === 'list' ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <FiList className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Active Filters */}
-            {(filters.category !== 'all' || filters.rating > 0 || filters.searchQuery) && (
-              <div className="flex flex-wrap gap-2 mb-6">
+            {activeFilterCount > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mb-6 p-3 bg-brand-blue/5 rounded-2xl border border-brand-blue/15">
+                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 mr-1">Active:</span>
                 {filters.category !== 'all' && (
-                  <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                    {filters.category}
-                    <button
-                      onClick={() => handleFilterChange('category', 'all')}
-                      className="hover:text-primary-900"
-                    >
-                      <FiX className="w-4 h-4" />
+                  <span className="bg-white dark:bg-gray-800 text-brand-blue text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm border border-gray-200 dark:border-gray-700">
+                    Category: {filters.category}
+                    <button onClick={() => handleFilterChange('category', 'all')} className="hover:text-red-500">
+                      <FiX className="w-3.5 h-3.5" />
                     </button>
                   </span>
                 )}
                 {filters.rating > 0 && (
-                  <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                  <span className="bg-white dark:bg-gray-800 text-brand-blue text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm border border-gray-200 dark:border-gray-700">
                     {filters.rating}+ Stars
-                    <button
-                      onClick={() => handleFilterChange('rating', 0)}
-                      className="hover:text-primary-900"
-                    >
-                      <FiX className="w-4 h-4" />
+                    <button onClick={() => handleFilterChange('rating', 0)} className="hover:text-red-500">
+                      <FiX className="w-3.5 h-3.5" />
                     </button>
                   </span>
                 )}
                 {filters.searchQuery && (
-                  <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                  <span className="bg-white dark:bg-gray-800 text-brand-blue text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm border border-gray-200 dark:border-gray-700">
                     "{filters.searchQuery}"
-                    <button
-                      onClick={() => handleFilterChange('searchQuery', '')}
-                      className="hover:text-primary-900"
-                    >
-                      <FiX className="w-4 h-4" />
+                    <button onClick={() => handleFilterChange('searchQuery', '')} className="hover:text-red-500">
+                      <FiX className="w-3.5 h-3.5" />
                     </button>
                   </span>
                 )}
                 <button
                   onClick={handleResetFilters}
-                  className="text-sm text-gray-600 hover:text-primary-600 underline"
+                  className="text-xs text-brand-blue font-bold hover:underline flex items-center gap-1 ml-auto"
                 >
-                  Clear all
+                  <FiRotateCcw className="w-3.5 h-3.5" /> Clear All
                 </button>
               </div>
             )}
 
-            {/* Products */}
-            {currentProducts.length > 0 ? (
-              <motion.div
-                layout
-                className={`grid gap-6 ${
-                  viewMode === 'grid'
-                    ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
-                    : 'grid-cols-1'
-                }`}
-              >
-                {currentProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+            {/* Initial Loading Skeletons */}
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <ProductCardSkeleton key={i} />
                 ))}
-              </motion.div>
+              </div>
+            ) : productsList.length > 0 ? (
+              <>
+                {/* Product Grid / List */}
+                <div
+                  className={`grid gap-6 ${
+                    viewMode === 'grid'
+                      ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
+                      : 'grid-cols-1'
+                  }`}
+                >
+                  {productsList.map((product, idx) => {
+                    const isLast = idx === productsList.length - 1
+                    return (
+                      <div key={product.id} ref={isLast ? lastElementRef : null}>
+                        <ProductCard product={product} />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Loading More Append Shimmer */}
+                {loadingMore && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+                    {[...Array(3)].map((_, i) => (
+                      <ProductCardSkeleton key={i} />
+                    ))}
+                  </div>
+                )}
+
+                {/* End of Catalog Experience */}
+                {!hasNextPage && productsList.length > 0 && (
+                  <div className="py-16 text-center border-t border-gray-200 dark:border-gray-800 mt-12">
+                    <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FiCheckCircle className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                      You've reached the end of the collection
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+                      All {productsList.length} matching items loaded seamlessly. Check back soon for new drops!
+                    </p>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No products found</p>
-                <button
-                  onClick={handleResetFilters}
-                  className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
-                >
-                  Clear filters
-                </button>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 mt-8">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  Previous
-                </button>
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`px-4 py-2 rounded-lg ${
-                      currentPage === i + 1
-                        ? 'bg-primary-600 text-white'
-                        : 'border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  Next
+              /* Empty Catalog State */
+              <div className="text-center py-24 glass-card rounded-3xl p-8 border border-gray-200 dark:border-gray-800">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-400">
+                  <FiFilter className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  No products matched your filters
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  Try adjusting your price range, clearing active search terms, or selecting a different category.
+                </p>
+                <button onClick={handleResetFilters} className="btn-primary text-sm px-6 py-3 rounded-xl">
+                  Reset All Filters
                 </button>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Sticky Mobile Filter Bar & Drawer */}
+      <StickyMobileFilter
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onReset={handleResetFilters}
+        activeCount={activeFilterCount}
+      />
     </div>
   )
 }

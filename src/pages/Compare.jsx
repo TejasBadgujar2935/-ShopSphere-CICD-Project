@@ -1,144 +1,181 @@
+import React, { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { FiX, FiCheck } from 'react-icons/fi'
+import { motion } from 'framer-motion'
+import { FiX, FiShoppingCart, FiCheck, FiSliders, FiAward, FiZap, FiTrash2, FiPlus } from 'react-icons/fi'
 import { useComparison } from '../context/ComparisonContext'
+import { useCart } from '../context/CartContext'
 import { formatPrice } from '../utils/helpers'
+import { products } from '../data/mockProductsData'
 
 const Compare = () => {
-  const { compareItems, removeFromCompare, clearCompare } = useComparison()
+  const { compareItems, removeFromCompare, clearCompare, addToCompare } = useComparison()
+  const { addToCart } = useCart()
+
+  // Pre-populate 3 items for demonstration if empty
+  useEffect(() => {
+    if (compareItems.length === 0) {
+      addToCompare(products[0])
+      addToCompare(products[1])
+      addToCompare(products[2])
+    }
+  }, [])
 
   if (compareItems.length === 0) {
     return (
-      <div className="pt-24 pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-16">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">No products to compare</h1>
-            <p className="text-gray-600 mb-8">Add products to compare their features</p>
-            <Link to="/products" className="btn-primary">
-              Browse Products
-            </Link>
-          </div>
+      <div className="pt-32 pb-24 text-center max-w-xl mx-auto px-4">
+        <div className="w-20 h-20 bg-brand-blue/10 text-brand-blue rounded-3xl flex items-center justify-center mx-auto mb-4">
+          <FiSliders className="w-10 h-10" />
         </div>
+        <h2 className="text-3xl font-extrabold mb-2">No Products to Compare</h2>
+        <p className="text-gray-500 text-sm mb-6">Select up to 4 items from the catalog to compare technical specifications side-by-side.</p>
+        <Link to="/products" className="btn-primary px-8 py-3 rounded-2xl text-sm font-bold inline-block">
+          Browse Products
+        </Link>
       </div>
     )
   }
 
-  const allSpecs = [...new Set(compareItems.flatMap((p) => Object.keys(p.specifications)))]
+  // Calculate best price and best rating IDs
+  const lowestPriceItem = [...compareItems].sort((a, b) => a.price - b.price)[0]
+  const highestRatingItem = [...compareItems].sort((a, b) => b.rating - a.rating)[0]
 
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-28 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Compare Products ({compareItems.length})
-          </h1>
-          <button
-            onClick={clearCompare}
-            className="text-red-600 hover:text-red-700 font-medium"
-          >
-            Clear All
-          </button>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-widest text-brand-blue bg-brand-blue/10 px-3.5 py-1 rounded-full mb-2 inline-block">
+              SPECIFICATION MATRIX
+            </span>
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-gray-900 dark:text-white">
+              Product Comparison
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Comparing <strong className="text-brand-blue">{compareItems.length}</strong> products side-by-side with smart value highlights.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={clearCompare}
+              className="btn-secondary text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-red-500 border-red-200 dark:border-red-900/40 hover:bg-red-50"
+            >
+              <FiTrash2 className="w-4 h-4" /> Clear Matrix
+            </button>
+            <Link to="/products" className="btn-primary text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2">
+              <FiPlus className="w-4 h-4" /> Add Product
+            </Link>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        {/* Desktop Side-by-Side Comparison Matrix */}
+        <div className="overflow-x-auto no-scrollbar rounded-3xl glass-card border border-gray-200/80 dark:border-gray-800 shadow-2xl p-6">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
-              <tr>
-                <th className="p-4 text-left font-semibold text-gray-900 min-w-[200px]">Feature</th>
-                {compareItems.map((product) => (
-                  <th key={product.id} className="p-4 min-w-[250px]">
-                    <div className="relative">
+              <tr className="border-b border-gray-200 dark:border-gray-800">
+                <th className="p-4 text-xs uppercase font-bold text-gray-400 w-48">Feature</th>
+                {compareItems.map((item) => (
+                  <th key={item.id} className="p-4 w-64 align-top">
+                    <div className="relative group p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-200/50 dark:border-gray-700/50">
                       <button
-                        onClick={() => removeFromCompare(product.id)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                        onClick={() => removeFromCompare(item.id)}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 hover:text-red-500"
                       >
                         <FiX className="w-4 h-4" />
                       </button>
-                      <img
-                        src={product.images[0]}
-                        alt={product.name}
-                        className="w-32 h-32 object-cover rounded-lg mx-auto mb-4"
-                      />
-                      <Link
-                        to={`/product/${product.id}`}
-                        className="font-semibold text-gray-900 hover:text-primary-600"
+
+                      <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-white">
+                        <img src={item.images ? item.images[0] : item.image} alt={item.name} className="w-full h-full object-cover" />
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase text-brand-blue">{item.category}</p>
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-2">{item.name}</h4>
+                        <p className="text-lg font-black text-brand-blue pt-1">{formatPrice(item.price)}</p>
+                      </div>
+
+                      {/* Best Value Badges */}
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {lowestPriceItem?.id === item.id && (
+                          <span className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <FiZap className="w-3 h-3" /> BEST PRICE
+                          </span>
+                        )}
+                        {highestRatingItem?.id === item.id && (
+                          <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <FiAward className="w-3 h-3" /> BEST RATED
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => addToCart(item)}
+                        className="mt-4 w-full btn-primary py-2 text-xs font-bold flex items-center justify-center gap-2 rounded-xl"
                       >
-                        {product.name}
-                      </Link>
-                      <p className="text-lg font-bold text-primary-600 mt-2">
-                        {formatPrice(product.price)}
-                      </p>
+                        <FiShoppingCart className="w-4 h-4" /> Add to Cart
+                      </button>
                     </div>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
-              <tr className="border-t">
-                <td className="p-4 font-semibold text-gray-900">Rating</td>
-                {compareItems.map((product) => (
-                  <td key={product.id} className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="font-bold">{product.rating}</span>
-                      <span className="text-yellow-400">★</span>
-                    </div>
+
+            <tbody className="divide-y divide-gray-200/60 dark:divide-gray-800 text-xs font-medium">
+              {/* Category */}
+              <tr>
+                <td className="p-4 font-bold text-gray-400 uppercase">Category</td>
+                {compareItems.map((item) => (
+                  <td key={item.id} className="p-4 font-semibold text-gray-900 dark:text-white">{item.category}</td>
+                ))}
+              </tr>
+
+              {/* Brand */}
+              <tr>
+                <td className="p-4 font-bold text-gray-400 uppercase">Brand</td>
+                {compareItems.map((item) => (
+                  <td key={item.id} className="p-4 font-semibold text-gray-900 dark:text-white">{item.brand || 'ShopSphere'}</td>
+                ))}
+              </tr>
+
+              {/* Rating */}
+              <tr>
+                <td className="p-4 font-bold text-gray-400 uppercase">Rating</td>
+                {compareItems.map((item) => (
+                  <td key={item.id} className="p-4 font-bold text-amber-500">
+                    ★ {item.rating || 4.8} / 5.0
                   </td>
                 ))}
               </tr>
-              <tr className="border-t bg-gray-50">
-                <td className="p-4 font-semibold text-gray-900">Category</td>
-                {compareItems.map((product) => (
-                  <td key={product.id} className="p-4 text-center">
-                    {product.category}
+
+              {/* Stock */}
+              <tr>
+                <td className="p-4 font-bold text-gray-400 uppercase">Availability</td>
+                {compareItems.map((item) => (
+                  <td key={item.id} className="p-4 font-semibold text-emerald-500">In Stock ({item.stock || 30} units)</td>
+                ))}
+              </tr>
+
+              {/* Specifications Rows */}
+              <tr>
+                <td className="p-4 font-bold text-gray-400 uppercase">Key Technology</td>
+                {compareItems.map((item) => (
+                  <td key={item.id} className="p-4 text-gray-600 dark:text-gray-300">
+                    {item.specifications ? Object.values(item.specifications)[0] : 'Premium Tech Specs'}
                   </td>
                 ))}
               </tr>
-              <tr className="border-t">
-                <td className="p-4 font-semibold text-gray-900">Brand</td>
-                {compareItems.map((product) => (
-                  <td key={product.id} className="p-4 text-center">
-                    {product.brand}
+
+              <tr>
+                <td className="p-4 font-bold text-gray-400 uppercase">Warranty</td>
+                {compareItems.map((item) => (
+                  <td key={item.id} className="p-4 text-gray-600 dark:text-gray-300">
+                    {item.specifications?.Warranty || '1 Year Official Warranty'}
                   </td>
                 ))}
               </tr>
-              <tr className="border-t bg-gray-50">
-                <td className="p-4 font-semibold text-gray-900">Stock</td>
-                {compareItems.map((product) => (
-                  <td key={product.id} className="p-4 text-center">
-                    {product.stock > 0 ? (
-                      <span className="text-green-600 flex items-center justify-center gap-1">
-                        <FiCheck className="w-4 h-4" />
-                        In Stock ({product.stock})
-                      </span>
-                    ) : (
-                      <span className="text-red-600">Out of Stock</span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-              {allSpecs.map((spec) => (
-                <tr key={spec} className="border-t">
-                  <td className="p-4 font-semibold text-gray-900">{spec}</td>
-                  {compareItems.map((product) => (
-                    <td key={product.id} className="p-4 text-center">
-                      {product.specifications[spec] || '-'}
-                    </td>
-                  ))}
-                </tr>
-              ))}
             </tbody>
           </table>
-        </div>
-
-        <div className="mt-8 flex justify-center gap-4">
-          {compareItems.map((product) => (
-            <Link
-              key={product.id}
-              to={`/product/${product.id}`}
-              className="btn-primary"
-            >
-              View {product.name}
-            </Link>
-          ))}
         </div>
       </div>
     </div>
